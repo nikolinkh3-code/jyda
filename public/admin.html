@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>JYDA Admin</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  :root {
+    --green: #193522;
+    --green-soft: #e9eee7;
+    --gold: #efc56c;
+    --cream: #f6f4ed;
+    --muted: #7b847d;
+    --line: #dedbd2;
+    --danger: #8c3033;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--cream); color: var(--green); font: 16px/1.5 "DM Sans", Arial, sans-serif; }
+  .wrap { max-width: 600px; margin: 0 auto; padding: 16px 16px 60px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 8px; }
+  .logo { font-size: 26px; font-weight: 800; letter-spacing: 1px; }
+  .logo small { font-weight: 500; letter-spacing: 0; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px; }
+  h2 { margin: 0 0 12px; font-size: 19px; }
+  label { display: block; margin: 12px 0 4px; font-weight: 600; font-size: 14px; }
+  input[type=text], input[type=number], input[type=tel], input[type=password], select, textarea {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font: inherit; color: inherit;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--gold); border-color: transparent; }
+  .btn { display: inline-block; border: 0; border-radius: 999px; padding: 12px 20px; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
+  .btn.main { background: var(--green); color: #fff; width: 100%; font-size: 17px; }
+  .btn.main:disabled { opacity: .6; cursor: wait; }
+  .btn.ghost { background: var(--green-soft); color: var(--green); }
+  .btn.small { padding: 7px 12px; font-size: 13px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chips button.on { background: var(--green); color: var(--gold); }
+  .muted { color: var(--muted); font-size: 13px; }
+  .error { color: var(--danger); font-size: 14px; min-height: 20px; margin-top: 8px; }
+  .photo-pick { display: flex; gap: 12px; align-items: center; }
+  .photo-pick img { width: 90px; height: 90px; object-fit: cover; border-radius: 12px; background: var(--green-soft); }
+  .item { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .item:first-child { border-top: 0; }
+  .item img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; background: var(--green-soft); flex: none; }
+  .item .info { flex: 1; min-width: 0; }
+  .item .name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .actions { display: flex; gap: 6px; flex: none; }
+  .del { background: #f5e4e4; color: var(--danger); }
+  .editing { outline: 2px solid var(--gold); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">JYDA <small class="muted">admin</small></div>
+    <div>
+      <a class="btn ghost small" href="/">← Website</a>
+      <button class="btn ghost small hidden" id="logout">Log out</button>
+    </div>
+  </header>
+
+  <p class="muted" id="loading">Loading…</p>
+
+  <!-- Login -->
+  <section class="card hidden" id="login-view">
+    <h2>Admin login</h2>
+    <label for="login-pass">Password</label>
+    <input type="password" id="login-pass" autocomplete="current-password">
+    <div class="error" id="login-error"></div>
+    <button class="btn main" id="login-btn">Log in</button>
+  </section>
+
+  <!-- First time: create password -->
+  <section class="card hidden" id="setup-view">
+    <h2>Create a password</h2>
+    <p class="muted">First visit. You'll use this password to open the admin page from now on. At least 6 characters.</p>
+    <label for="setup-pass">Password</label>
+    <input type="password" id="setup-pass" autocomplete="new-password">
+    <label for="setup-pass2">Repeat password</label>
+    <input type="password" id="setup-pass2" autocomplete="new-password">
+    <div class="error" id="setup-error"></div>
+    <button class="btn main" id="setup-btn">Save password</button>
+  </section>
+
+  <!-- Main -->
+  <div class="hidden" id="main-view">
+    <div class="chips" id="sections"></div>
+
+    <section class="card" id="form-card">
+      <h2 id="form-title"></h2>
+      <div id="fields"></div>
+      <div class="error" id="form-error"></div>
+      <button class="btn main" id="save-btn">Add</button>
+      <p class="hidden" style="text-align:center;margin:10px 0 0"><button class="btn ghost small" id="cancel-btn">Cancel editing</button></p>
+    </section>
+
+    <section class="card">
+      <h2 id="list-title"></h2>
+      <p class="muted" id="list-note"></p>
+      <div class="error" id="list-error"></div>
+      <div id="list"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbxWMLCt2lKg6lTcJK_Qt7gduaReQTSj-T0Io__at2p5QGt11_6a7lXY8_ITNNFlwQSQ6A/exec";
+const PASSWORD_KEY = "jydaAdminPass";
+const MAX_SIDE = 1600; // photos are shrunk to this size before upload
+
+// Each section is one tab of the "JYDA Data" Google Sheet.
+const SECTIONS = {
+  gallery: {
+    label: "Gallery",
+    item: "photo",
+    fields: [
+      { key: "image", label: "Photo", type: "photo" },
+      { key: "title", label: "Title", required: true },
+      { key: "category", label: "Category", options: ["Village", "Nature", "Community", "Events"] },
+    ],
+    line: (r) => r.category,
+  },
+  donors: {
+    label: "Blood Donors",
+    item: "donor",
+    fields: [
+      { key: "name", label: "Name", required: true },
+      { key: "blood", label: "Blood group", options: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] },
+      { key: "phone", label: "Phone (optional)", type: "tel" },
+    ],
+    line: (r) => r.blood + (r.phone ? " · " + r.phone : ""),
+  },
+  committee: {
+    label: "Committee",
+    item: "member",
+    fields: [
+      { key: "name", label: "Name", required: true },
+      { key: "role", label: "Role (e.g. President)", required: true },
+      { key: "initials", label: "Initials on the circle (optional)", placeholder: "Empty = from the role, e.g. VP" },
+    ],
+    line: (r) => r.role,
+  },
+  families: {
+    label: "Families",
+    item: "family",
+    fields: [
+      { key: "familyName", label: "Family name", required: true },
+      { key: "head", label: "Head of family" },
+      { key: "members", label: "Members", type: "number" },
+      { key: "area", label: "Area", value: "Jamtali" },
+    ],
+    line: (r) => (r.head ? r.head + " · " : "") + (r.members || 0) + " members",
+  },
+  culture: {
+    label: "Culture",
+    item: "program",
+    fields: [
+      { key: "title", label: "Program name", required: true },
+      { key: "type", label: "Type", options: ["Upcoming", "Past"] },
+      { key: "date", label: "Date", placeholder: "e.g. 14 April 2027" },
+      { key: "location", label: "Location", value: "Jamtali, Khagrachari" },
+      { key: "icon", label: "Icon (emoji)", value: "🎭" },
+      { key: "description", label: "Description", type: "textarea" },
+    ],
+    line: (r) => r.type + (r.date ? " · " + r.date : ""),
+  },
+};
+
+const $ = (id) => document.getElementById(id);
+const show = (...ids) => ids.forEach((id) => $(id).classList.remove("hidden"));
+const hide = (...ids) => ids.forEach((id) => $(id).classList.add("hidden"));
+const store = {
+  get: () => { try { return localStorage.getItem(PASSWORD_KEY) || ""; } catch (e) { return ""; } },
+  set: (v) => { try { localStorage.setItem(PASSWORD_KEY, v); } catch (e) {} },
+  clear: () => { try { localStorage.removeItem(PASSWORD_KEY); } catch (e) {} },
+};
+let password = "";
+
+async function api(body) {
+  const res = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ ...body, password }),
+  });
+  return res.json();
+}
+
+// ---- Login ----
+async function tryLogin(pass) {
+  password = pass;
+  const r = await api({ action: "login" });
+  if (r.needsPassword) {
+    hide("login-view");
+    show("setup-view");
+    return;
+  }
+  if (!r.ok) throw new Error(r.error || "Login failed");
+  store.set(pass);
+  hide("login-view", "setup-view");
+  show("main-view", "logout");
+  history.replaceState({ section: "gallery" }, "", "#gallery");
+  showSection("gallery");
+}
+
+$("login-btn").onclick = async () => {
+  $("login-error").textContent = "";
+  $("login-btn").disabled = true;
+  try {
+    await tryLogin($("login-pass").value);
+  } catch (e) {
+    $("login-error").textContent = e.message === "Wrong password" ? "Wrong password." : "Something went wrong: " + e.message;
+  }
+  $("login-btn").disabled = false;
+};
+$("login-pass").onkeydown = (e) => {
+  if (e.key === "Enter") $("login-btn").click();
+};
+
+$("setup-btn").onclick = async () => {
+  const p1 = $("setup-pass").value, p2 = $("setup-pass2").value;
+  $("setup-error").textContent = "";
+  if (p1.length < 6) return ($("setup-error").textContent = "Use at least 6 characters.");
+  if (p1 !== p2) return ($("setup-error").textContent = "The passwords don't match.");
+  $("setup-btn").disabled = true;
+  password = p1;
+  const r = await api({ action: "setPassword" }).catch((e) => ({ ok: false, error: e.message }));
+  $("setup-btn").disabled = false;
+  if (!r.ok) return ($("setup-error").textContent = r.error || "Something went wrong");
+  await tryLogin(p1).catch((e) => ($("setup-error").textContent = e.message));
+};
+
+$("logout").onclick = () => {
+  store.clear();
+  password = "";
+  hide("main-view", "logout");
+  show("login-view");
+};
+
+// ---- Sections. Each switch is a browser history step, so Back returns to the previous section. ----
+let section = "gallery";
+let editing = null; // the row being edited, or null when adding
+let photo = null; // { data, url } of a newly picked photo
+let rows = [];
+
+Object.entries(SECTIONS).forEach(([key, s]) => {
+  const b = document.createElement("button");
+  b.className = "btn ghost small";
+  b.textContent = s.label;
+  b.dataset.section = key;
+  b.onclick = () => {
+    history.pushState({ section: key }, "", "#" + key);
+    showSection(key);
+  };
+  $("sections").appendChild(b);
+});
+window.addEventListener("popstate", (e) => {
+  if (!$("main-view").classList.contains("hidden")) showSection((e.state && e.state.section) || "gallery");
+});
+
+function showSection(key) {
+  section = key;
+  document.querySelectorAll("#sections button").forEach((b) => b.classList.toggle("on", b.dataset.section === key));
+  $("list-title").textContent = SECTIONS[key].label;
+  startAdding();
+  loadList();
+}
+
+// ---- Form ----
+function startAdding() {
+  editing = null;
+  drawForm({});
+}
+
+function drawForm(values) {
+  const s = SECTIONS[section];
+  photo = null;
+  $("form-title").textContent = (editing ? "Edit " : "New ") + s.item;
+  $("save-btn").textContent = editing ? "Save changes" : "Add";
+  $("cancel-btn").parentElement.classList.toggle("hidden", !editing);
+  $("form-card").classList.toggle("editing", !!editing);
+  $("form-error").textContent = "";
+  $("fields").innerHTML = "";
+  s.fields.forEach((f) => {
+    const value = values[f.key] != null && values[f.key] !== "" ? values[f.key] : editing ? "" : f.value || "";
+    const label = document.createElement("label");
+    label.textContent = f.label;
+    label.htmlFor = "f-" + f.key;
+    $("fields").appendChild(label);
+
+    let input;
+    if (f.type === "photo") {
+      const box = document.createElement("div");
+      box.className = "photo-pick";
+      box.innerHTML = '<img alt=""><div><input type="file" accept="image/*" id="f-image"><p class="muted">The photo is made smaller before upload.</p></div>';
+      const img = box.querySelector("img");
+      if (value) img.src = value;
+      box.querySelector("input").onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          photo = await shrink(file);
+          img.src = photo.url;
+        } catch (err) {
+          $("form-error").textContent = err.message;
+        }
+      };
+      $("fields").appendChild(box);
+      return;
+    }
+    if (f.options) {
+      input = document.createElement("select");
+      const options = f.options.includes(value) || !value ? f.options : [value, ...f.options];
+      options.forEach((o) => input.insertAdjacentHTML("beforeend", "<option>" + o + "</option>"));
+    } else if (f.type === "textarea") {
+      input = document.createElement("textarea");
+    } else {
+      input = document.createElement("input");
+      input.type = f.type || "text";
+      if (f.type === "number") input.min = "0";
+    }
+    input.id = "f-" + f.key;
+    if (f.placeholder) input.placeholder = f.placeholder;
+    if (value) input.value = value;
+    $("fields").appendChild(input);
+  });
+}
+
+function shrink(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      resolve({ data: dataUrl.split(",")[1], url: dataUrl });
+    };
+    img.onerror = () => reject(new Error("Couldn't open this photo: " + file.name));
+    img.src = url;
+  });
+}
+
+// Committee circles show initials; without any, take them from the role ("Vice President" -> "VP").
+const initialsOf = (role) => role.split(/\s+/).filter(Boolean).map((w) => w[0].toUpperCase()).join("").slice(0, 3);
+
+$("save-btn").onclick = async () => {
+  const s = SECTIONS[section];
+  const item = {};
+  for (const f of s.fields) {
+    if (f.type === "photo") continue;
+    item[f.key] = $("f-" + f.key).value.trim();
+    if (f.required && !item[f.key]) return ($("form-error").textContent = f.label + " is needed.");
+  }
+  if (section === "committee" && !item.initials) item.initials = initialsOf(item.role);
+  if (section === "gallery" && !photo && !(editing && editing.image)) return ($("form-error").textContent = "Pick a photo.");
+
+  const btn = $("save-btn");
+  btn.disabled = true;
+  $("form-error").textContent = "";
+  try {
+    if (photo) {
+      btn.textContent = "Uploading photo…";
+      const up = await api({ action: "upload", data: photo.data, mime: "image/jpeg", name: (item.title || "photo") + ".jpg" });
+      if (!up.ok) throw new Error(up.error || "Photo upload failed");
+      item.image = "/gimg/" + up.id;
+    }
+    btn.textContent = "Saving…";
+    const r = editing
+      ? await api({ action: "update", tab: section, id: editing.id, item })
+      : await api({ action: "add", tab: section, item });
+    if (!r.ok) throw new Error(r.error || "Couldn't save");
+    startAdding();
+    loadList();
+    $("form-error").textContent = "";
+    $("list-note").textContent = "✓ Saved. It shows on the website after a page refresh.";
+  } catch (e) {
+    $("form-error").textContent = "Something went wrong: " + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = editing ? "Save changes" : "Add";
+};
+
+$("cancel-btn").onclick = startAdding;
+
+// ---- List ----
+async function loadList() {
+  const key = section;
+  $("list-error").textContent = "";
+  $("list-note").textContent = "";
+  $("list").innerHTML = '<p class="muted">Loading…</p>';
+  const r = await api({ action: "list", tab: key }).catch((e) => ({ ok: false, error: e.message }));
+  if (key !== section) return; // switched section while loading
+  if (!r.ok) {
+    $("list").innerHTML = "";
+    return ($("list-error").textContent = r.error || "Couldn't load");
+  }
+  rows = r.items.reverse();
+  drawList();
+}
+
+function drawList() {
+  const s = SECTIONS[section];
+  if (!rows.length) {
+    $("list").innerHTML = '<p class="muted">Nothing added yet. Until you add the first ' + s.item + ", the website shows its built-in list.</p>";
+    return;
+  }
+  $("list").innerHTML = "";
+  rows.forEach((row) => {
+    const el = document.createElement("div");
+    el.className = "item";
+    el.innerHTML =
+      (row.image ? '<img alt="">' : "") +
+      '<div class="info"><div class="name"></div><div class="muted"></div></div>' +
+      '<div class="actions"><button class="btn ghost small">Edit</button><button class="btn small del">Delete</button></div>';
+    if (row.image) el.querySelector("img").src = row.image;
+    el.querySelector(".name").textContent = row.name || row.title || row.familyName || "(no name)";
+    el.querySelector(".info .muted").textContent = s.line(row);
+    const [edit, del] = el.querySelectorAll(".actions button");
+    edit.onclick = () => {
+      editing = row;
+      drawForm(row);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    del.onclick = async () => {
+      const name = row.name || row.title || row.familyName || "this " + s.item;
+      if (!confirm("Delete “" + name + "”? It will also disappear from the website.")) return;
+      const res = await api({ action: "delete", tab: section, id: row.id }).catch(() => ({ ok: false }));
+      if (!res.ok) return alert("Couldn't delete.");
+      rows = rows.filter((x) => x !== row);
+      if (editing === row) startAdding();
+      drawList();
+    };
+    $("list").appendChild(el);
+  });
+}
+
+// ---- Start ----
+// A saved password logs straight in; with none, the first call also tells whether a password exists yet.
+(async () => {
+  const saved = store.get();
+  try {
+    await tryLogin(saved);
+    return;
+  } catch (e) {
+    if (saved) store.clear();
+  } finally {
+    hide("loading");
+  }
+  if ($("setup-view").classList.contains("hidden")) show("login-view");
+})();
+</script>
+</body>
+</html>
