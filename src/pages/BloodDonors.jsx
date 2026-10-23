@@ -1,6 +1,7 @@
 import { useState } from "react";
+import useSheetData from "../data/useSheetData";
 
-const donors = [
+const builtInDonors = [
   { id: 1, name: "Dinesh Chakma", blood: "A+", phone: "01828875510" },
   { id: 2, name: "Paresh Chakma", blood: "A+", phone: "01557345700" },
   { id: 3, name: "Jiten Chakma", blood: "A+", phone: "01644243412" },
@@ -39,10 +40,11 @@ const donors = [
 ];
 
 function BloodDonors() {
+  const donors = useSheetData("donors", builtInDonors);
   const [bloodFilter, setBloodFilter] = useState("All");
   const [search, setSearch] = useState("");
 
-  const bloodGroups = ["All", "A+", "B+", "AB+"];
+  const bloodGroups = ["All", ...new Set(donors.map((donor) => donor.blood).filter(Boolean))];
 
   const filteredDonors = donors.filter((donor) => {
     const matchesBlood =
