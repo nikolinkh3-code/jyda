@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { culturalPrograms } from "../data/data";
+import { culturalPrograms as builtInCulturalPrograms } from "../data/data";
+import useSheetData from "../data/useSheetData";
 
 function Culture() {
+  const culturalPrograms = useSheetData("culture", builtInCulturalPrograms);
   const [filter, setFilter] = useState("All");
 
   const filtered =
