@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { galleryPhotos } from "../data/data";
+import { galleryPhotos as builtInGalleryPhotos } from "../data/data";
+import useSheetData from "../data/useSheetData";
 
 function Gallery() {
+  const galleryPhotos = useSheetData("gallery", builtInGalleryPhotos);
   const categories = ["All", "Village", "Nature", "Community", "Events"];
   const [category, setCategory] = useState("All");
   const [selectedPhoto, setSelectedPhoto] = useState(null);
