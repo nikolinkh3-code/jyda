@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { families } from "../data/data";
+import { families as builtInFamilies } from "../data/data";
+import useSheetData from "../data/useSheetData";
 
 function Families() {
+  const families = useSheetData("families", builtInFamilies);
   const [search, setSearch] = useState("");
 
   const filtered = families.filter((family) =>
