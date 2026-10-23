@@ -1,4 +1,5 @@
-import { committee } from "../data/data";
+import { committee as builtInCommittee } from "../data/data";
+import useSheetData from "../data/useSheetData";
 
 const activities = [
   ["🩸", "Blood Donation", "Connecting voluntary donors with people during emergencies."],
@@ -8,6 +9,7 @@ const activities = [
 ];
 
 function Club() {
+  const committee = useSheetData("committee", builtInCommittee);
   return (
     <>
       <section className="page-hero club-hero">
